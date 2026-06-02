@@ -6,6 +6,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DashboardClient } from "@/components/dashboard-client";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { TeacherSessionActions } from "@/components/teacher-session-actions";
 import { createClient } from "@/lib/supabase/server";
 
 type DashboardPageProps = {
@@ -26,6 +29,24 @@ type Profile = {
   year: number | string | null;
 };
 
+type StudentCourseRow = {
+  course_id?: string | number | null;
+  [key: string]: unknown;
+};
+
+type CourseRow = {
+  id?: string | number | null;
+  code?: string | null;
+  course_code?: string | null;
+  name?: string | null;
+  title?: string | null;
+  [key: string]: unknown;
+};
+
+type StaffRow = {
+  name: string | null;
+};
+
 export default async function DashboardPage({
   searchParams,
 }: DashboardPageProps) {
@@ -34,17 +55,37 @@ export default async function DashboardPage({
     data: { user },
   } = await supabase.auth.getUser();
   const params = await searchParams;
+  const role = user?.user_metadata?.role;
+
+  const { data: studentCourses } = await supabase
+    .from("student_courses")
+    .select("*");
+  const courseCodes =
+    studentCourses
+      ?.map((course) => String((course as StudentCourseRow).course_id ?? ""))
+      .filter(Boolean) ?? [];
+
+  if (role !== "student") {
+    const { data: staffRows } = await supabase
+      .from("staff")
+      .select("name")
+      .limit(1);
+    const { data: courses } = await supabase.from("courses").select("*");
+
+    return (
+      <TeacherDashboard
+        staff={staffRows?.[0] as StaffRow | undefined}
+        studentCourses={(studentCourses ?? []) as StudentCourseRow[]}
+        courses={(courses ?? []) as CourseRow[]}
+      />
+    );
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("email", user?.email ?? "")
     .maybeSingle<Profile>();
-  const { data: studentCourses } = await supabase
-    .from("student_courses")
-    .select("course_id");
-  const courseCodes =
-    studentCourses?.map((course) => String(course.course_id)) ?? [];
 
   return (
     <div className="space-y-6">
@@ -85,8 +126,89 @@ export default async function DashboardPage({
         hasProfile={Boolean(profile)}
         initialCourseCodes={courseCodes}
         platformError={params?.platformError}
-        shouldImportCourses={params?.uncompleted === "true" && Boolean(profile)}
+        shouldImportCourses={Boolean(profile) && courseCodes.length === 0}
       />
+    </div>
+  );
+}
+
+function TeacherDashboard({
+  courses,
+  staff,
+  studentCourses,
+}: {
+  courses: CourseRow[];
+  staff?: StaffRow;
+  studentCourses: StudentCourseRow[];
+}) {
+  const courseOptions = courses
+    .map((course) => {
+      const code = String(course.code ?? course.course_code ?? course.id ?? "");
+      return {
+        code,
+        name: course.name ?? course.title ?? null,
+      };
+    })
+    .filter((course) => course.code);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+            Teacher overview
+          </h1>
+        </div>
+        <TeacherSessionActions courses={courseOptions} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Staff information</CardTitle>
+          <CardDescription>
+            Basic staff details loaded from Supabase.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProfileInfo label="Name" value={staff?.name} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle>Student courses</CardTitle>
+              <CardDescription>
+                Current rows from the student_courses table.
+              </CardDescription>
+            </div>
+            <Badge variant="secondary">{studentCourses.length} rows</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {studentCourses.length > 0 ? (
+            studentCourses.map((course, index) => (
+              <div key={`${course.course_id ?? index}`} className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Course ID
+                  </p>
+                  <p className="break-words font-medium">
+                    {String(course.course_id ?? "Unavailable")}
+                  </p>
+                </div>
+                {index < studentCourses.length - 1 ? <Separator /> : null}
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No student courses found.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

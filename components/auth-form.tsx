@@ -50,6 +50,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              role: "student",
+            },
           },
         });
 

@@ -21,6 +21,25 @@ export async function POST() {
     );
   }
 
+  const { data: savedCourses, error: savedCoursesError } = await supabase
+    .from("student_courses")
+    .select("course_id");
+
+  if (savedCoursesError) {
+    return NextResponse.json(
+      { success: false, message: "Could not check saved courses. Try again." },
+      { status: 500 },
+    );
+  }
+
+  if (savedCourses && savedCourses.length > 0) {
+    return NextResponse.json({
+      success: true,
+      courseCodes: savedCourses.map((course) => String(course.course_id)),
+      message: "Loaded saved courses.",
+    });
+  }
+
   const sessionId = await getStoredSessionId();
 
   if (!sessionId) {
@@ -50,16 +69,9 @@ export async function POST() {
   }
 
   const courseCodes = scrapeStudentCourseCodes(visitResult.data);
-  const { data: existingCourses } = await supabase
-    .from("student_courses")
-    .select("course_id")
-    .in("course_id", courseCodes);
-  const existingCourseIds = new Set(
-    existingCourses?.map((course) => course.course_id) ?? [],
-  );
-  const rowsToInsert = courseCodes
-    .filter((courseCode) => !existingCourseIds.has(courseCode))
-    .map((courseCode) => ({ course_id: courseCode }));
+  const rowsToInsert = courseCodes.map((courseCode) => ({
+    course_id: courseCode,
+  }));
 
   if (rowsToInsert.length > 0) {
     const { error: insertError } = await supabase

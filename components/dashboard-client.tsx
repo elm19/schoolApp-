@@ -41,7 +41,9 @@ export function DashboardClient({
     platformError ?? null,
   );
   const [importStatus, setImportStatus] = useState<string | null>(
-    hasProfile ? "Checking your registered courses..." : null,
+    hasProfile && shouldImportCourses
+      ? "Checking your registered courses..."
+      : null,
   );
   const [importError, setImportError] = useState<string | null>(null);
   const [courseCodes, setCourseCodes] = useState(initialCourseCodes);
@@ -185,7 +187,7 @@ export function DashboardClient({
       <CardHeader>
         <CardTitle>Registered courses</CardTitle>
         <CardDescription>
-          First-time setup imports your registered course codes from SchoolApp.
+          Saved course registrations from Supabase are used as the source of truth.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -218,15 +220,17 @@ export function DashboardClient({
           )}
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isImporting}
-          onClick={() => void importCourses()}
-        >
-          {isImporting ? <Spinner /> : null}
-          Retry course import
-        </Button>
+        {importError && courseCodes.length === 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isImporting}
+            onClick={() => void importCourses()}
+          >
+            {isImporting ? <Spinner /> : null}
+            Retry course import
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );
