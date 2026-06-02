@@ -76,17 +76,22 @@ function SessionSheet({
   const [courseId, setCourseId] = useState(courses[0]?.code ?? "");
   const [sessionType, setSessionType] = useState<SessionType>("course");
   const [period, setPeriod] = useState(periodsBySessionType.course[0]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleSessionTypeChange(value: SessionType) {
     setSessionType(value);
     setPeriod(periodsBySessionType[value][0]);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setMessage(null);
+    setError(null);
 
     const formData = new FormData(event.currentTarget);
-    console.log({
+    const payload = {
       actionType,
       year,
       section,
@@ -95,8 +100,47 @@ function SessionSheet({
       sessionType,
       date: String(formData.get("date") ?? ""),
       period,
-    });
-    setOpen(false);
+    };
+
+    if (actionType === "presentation") {
+      console.log(payload);
+      setMessage("Presentation session logged in the console.");
+      setOpen(false);
+      return;
+    }
+
+    if (!payload.courseId || !payload.date || !payload.period || !payload.section) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/attendance-list", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json()) as {
+        success?: boolean;
+        message?: string;
+      };
+
+      if (!response.ok || !data.success) {
+        setError(data.message ?? "Could not create roll call.");
+        return;
+      }
+
+      setMessage(data.message ?? "Roll call created successfully.");
+      setOpen(false);
+    } catch {
+      setError("Network/server error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -184,8 +228,19 @@ function SessionSheet({
           </div>
 
           <Button type="submit" disabled={!courseId}>
-            Create session
+            {isSubmitting ? "Creating..." : "Create session"}
           </Button>
+
+          {error ? (
+            <div className="border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              {error}
+            </div>
+          ) : null}
+          {message ? (
+            <div className="border bg-muted/40 p-3 text-sm text-muted-foreground">
+              {message}
+            </div>
+          ) : null}
         </form>
       </SheetContent>
     </Sheet>

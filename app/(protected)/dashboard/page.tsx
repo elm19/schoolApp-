@@ -5,10 +5,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import Link from "next/link";
 import { DashboardClient } from "@/components/dashboard-client";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { TeacherSessionActions } from "@/components/teacher-session-actions";
+import {
+  getCourseCode,
+  getCourseLabel,
+  getCourseName,
+  type StudentCourseDisplay,
+} from "@/lib/course-display";
 import { createClient } from "@/lib/supabase/server";
 
 type DashboardPageProps = {
@@ -47,6 +54,8 @@ type StaffRow = {
   name: string | null;
 };
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
 export default async function DashboardPage({
   searchParams,
 }: DashboardPageProps) {
@@ -57,25 +66,26 @@ export default async function DashboardPage({
   const params = await searchParams;
   const role = user?.user_metadata?.role;
 
-  const { data: studentCourses } = await supabase
-    .from("student_courses")
-    .select("*");
-  const courseCodes =
-    studentCourses
-      ?.map((course) => String((course as StudentCourseRow).course_id ?? ""))
-      .filter(Boolean) ?? [];
+  const { data: studentCourses } = await supabase.from("student_courses").select("*");
+  const { data: courses } = await supabase.from("courses").select("*");
+  const courseDisplays = mapStudentCoursesToDisplay(
+    (studentCourses ?? []) as StudentCourseRow[],
+    (courses ?? []) as CourseRow[],
+  );
 
-  if (role !== "student") {
-    const { data: staffRows } = await supabase
-      .from("staff")
-      .select("name")
-      .limit(1);
-    const { data: courses } = await supabase.from("courses").select("*");
+  if (role === "teacher") {
+    const staff = user?.id
+      ? await getConfirmedStaff(supabase, user.id)
+      : null;
+
+    if (!staff) {
+      return <PendingTeacherDashboard />;
+    }
 
     return (
       <TeacherDashboard
-        staff={staffRows?.[0] as StaffRow | undefined}
-        studentCourses={(studentCourses ?? []) as StudentCourseRow[]}
+        staff={staff}
+        studentCourses={courseDisplays}
         courses={(courses ?? []) as CourseRow[]}
       />
     );
@@ -124,10 +134,83 @@ export default async function DashboardPage({
 
       <DashboardClient
         hasProfile={Boolean(profile)}
-        initialCourseCodes={courseCodes}
+        initialCourses={courseDisplays}
         platformError={params?.platformError}
-        shouldImportCourses={Boolean(profile) && courseCodes.length === 0}
+        shouldImportCourses={Boolean(profile) && courseDisplays.length === 0}
       />
+    </div>
+  );
+}
+
+async function getConfirmedStaff(
+  supabase: SupabaseServerClient,
+  userId: string,
+) {
+  const userIdColumns = ["user_id", "id", "teacher_id", "auth_user_id"];
+
+  for (const column of userIdColumns) {
+    const { data, error } = await supabase
+      .from("staff")
+      .select("name")
+      .eq(column, userId)
+      .maybeSingle<StaffRow>();
+
+    if (!error && data) {
+      return data;
+    }
+  }
+
+  return null;
+}
+
+function mapStudentCoursesToDisplay(
+  studentCourses: StudentCourseRow[],
+  courses: CourseRow[],
+) {
+  const coursesByCode = new Map(
+    courses.map((course) => [getCourseCode(course), getCourseName(course)]),
+  );
+
+  return studentCourses
+    .map((studentCourse) => {
+      const code = String(studentCourse.course_id ?? "");
+      if (!code) {
+        return null;
+      }
+
+      return {
+        code,
+        name: coursesByCode.get(code) ?? null,
+      };
+    })
+    .filter((course): course is StudentCourseDisplay => Boolean(course));
+}
+
+function PendingTeacherDashboard() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+          Teacher approval pending
+        </h1>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Waiting for admin confirmation</CardTitle>
+          <CardDescription>
+            Your teacher account was created, but an admin still needs to
+            confirm your teacher status before you can use teacher features.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Once your account is confirmed in the staff table, this dashboard
+            will show roll call and presentation tools.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -138,15 +221,15 @@ function TeacherDashboard({
   studentCourses,
 }: {
   courses: CourseRow[];
-  staff?: StaffRow;
-  studentCourses: StudentCourseRow[];
+  staff: StaffRow;
+  studentCourses: StudentCourseDisplay[];
 }) {
   const courseOptions = courses
     .map((course) => {
-      const code = String(course.code ?? course.course_code ?? course.id ?? "");
+      const code = getCourseCode(course);
       return {
         code,
-        name: course.name ?? course.title ?? null,
+        name: getCourseName(course),
       };
     })
     .filter((course) => course.code);
@@ -190,14 +273,17 @@ function TeacherDashboard({
         <CardContent className="space-y-3">
           {studentCourses.length > 0 ? (
             studentCourses.map((course, index) => (
-              <div key={`${course.course_id ?? index}`} className="space-y-3">
+              <div key={`${course.code}-${index}`} className="space-y-3">
                 <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
                   <p className="text-sm font-medium text-muted-foreground">
-                    Course ID
+                    Course
                   </p>
-                  <p className="break-words font-medium">
-                    {String(course.course_id ?? "Unavailable")}
-                  </p>
+                  <Link
+                    href={`/dashboard/courses/${encodeURIComponent(course.code)}`}
+                    className="break-words font-medium underline-offset-4 hover:underline"
+                  >
+                    {getCourseLabel(course)}
+                  </Link>
                 </div>
                 {index < studentCourses.length - 1 ? <Separator /> : null}
               </div>

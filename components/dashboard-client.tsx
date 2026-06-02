@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -14,10 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
+import { getCourseLabel, type StudentCourseDisplay } from "@/lib/course-display";
 
 type DashboardClientProps = {
   hasProfile: boolean;
-  initialCourseCodes: string[];
+  initialCourses: StudentCourseDisplay[];
   platformError?: string;
   shouldImportCourses: boolean;
 };
@@ -25,12 +27,13 @@ type DashboardClientProps = {
 type ImportResponse = {
   success?: boolean;
   courseCodes?: string[];
+  courses?: StudentCourseDisplay[];
   message?: string;
 };
 
 export function DashboardClient({
   hasProfile,
-  initialCourseCodes,
+  initialCourses,
   platformError,
   shouldImportCourses,
 }: DashboardClientProps) {
@@ -46,7 +49,7 @@ export function DashboardClient({
       : null,
   );
   const [importError, setImportError] = useState<string | null>(null);
-  const [courseCodes, setCourseCodes] = useState(initialCourseCodes);
+  const [courses, setCourses] = useState(initialCourses);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -68,7 +71,14 @@ export function DashboardClient({
         return;
       }
 
-      setCourseCodes(data.courseCodes ?? []);
+      setCourses(
+        data.courses ??
+          data.courseCodes?.map((courseCode) => ({
+            code: courseCode,
+            name: null,
+          })) ??
+          [],
+      );
       setImportStatus("Courses imported successfully.");
       router.refresh();
     } catch {
@@ -204,14 +214,15 @@ export function DashboardClient({
         ) : null}
 
         <div className="flex flex-wrap gap-2">
-          {courseCodes.length > 0 ? (
-            courseCodes.map((courseCode) => (
-              <span
-                key={courseCode}
-                className="border bg-background px-3 py-1 text-sm font-medium"
+          {courses.length > 0 ? (
+            courses.map((course) => (
+              <Link
+                key={course.code}
+                href={`/dashboard/courses/${encodeURIComponent(course.code)}`}
+                className="border bg-background px-3 py-1 text-sm font-medium underline-offset-4 hover:underline"
               >
-                {courseCode}
-              </span>
+                {getCourseLabel(course)}
+              </Link>
             ))
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -220,7 +231,7 @@ export function DashboardClient({
           )}
         </div>
 
-        {importError && courseCodes.length === 0 ? (
+        {importError && courses.length === 0 ? (
           <Button
             type="button"
             variant="outline"

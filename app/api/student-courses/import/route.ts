@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { scrapeStudentCourseCodes } from "@/lib/scrapper/courses";
 import { visitUrl } from "@/lib/scrapper/utils";
+import { getCourseName, type StudentCourseDisplay } from "@/lib/course-display";
 import { createClient } from "@/lib/supabase/server";
 
 const COURSE_REGISTRATION_URL =
@@ -33,9 +34,13 @@ export async function POST() {
   }
 
   if (savedCourses && savedCourses.length > 0) {
+    const courseCodes = savedCourses.map((course) => String(course.course_id));
+    const courses = await getCoursesByCode(supabase, courseCodes);
+
     return NextResponse.json({
       success: true,
-      courseCodes: savedCourses.map((course) => String(course.course_id)),
+      courseCodes,
+      courses,
       message: "Loaded saved courses.",
     });
   }
@@ -86,11 +91,35 @@ export async function POST() {
     }
   }
 
+  const courses = await getCoursesByCode(supabase, courseCodes);
+
   return NextResponse.json({
     success: true,
     courseCodes,
+    courses,
     message: "Courses imported successfully.",
   });
+}
+
+async function getCoursesByCode(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  courseCodes: string[],
+) {
+  const { data } = await supabase
+    .from("courses")
+    .select("*")
+    .in("code", courseCodes);
+  const coursesByCode = new Map(
+    (data ?? []).map((course) => [
+      String(course.code ?? ""),
+      getCourseName(course),
+    ]),
+  );
+
+  return courseCodes.map((code) => ({
+    code,
+    name: coursesByCode.get(code) ?? null,
+  })) satisfies StudentCourseDisplay[];
 }
 
 async function getStoredSessionId() {
