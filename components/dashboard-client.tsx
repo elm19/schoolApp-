@@ -218,7 +218,7 @@ export function DashboardClient({
             courses.map((course) => (
               <Link
                 key={course.code}
-                href={`/dashboard/courses/${encodeURIComponent(course.code)}`}
+                href={`/courses/${encodeURIComponent(course.code)}`}
                 className="border bg-background px-3 py-1 text-sm font-medium underline-offset-4 hover:underline"
               >
                 {getCourseLabel(course)}

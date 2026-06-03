@@ -279,8 +279,8 @@ function TeacherDashboard({
                     Course
                   </p>
                   <Link
-                    href={`/dashboard/courses/${encodeURIComponent(course.code)}`}
-                    className="break-words font-medium underline-offset-4 hover:underline"
+                    href={`/courses/${encodeURIComponent(course.code)}`}
+                    className="wrap-break-word font-medium underline-offset-4 hover:underline"
                   >
                     {getCourseLabel(course)}
                   </Link>
@@ -311,7 +311,7 @@ function ProfileInfo({
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 break-words font-medium">
+      <p className="mt-2 wrap-break-word font-medium">
         {value || "Unavailable"}
       </p>
     </div>

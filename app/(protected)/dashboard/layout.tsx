@@ -39,7 +39,7 @@ export default async function DashboardLayout({
               Dashboard
             </Link>
             <Link
-              href="/dashboard/settings"
+              href="/settings"
               className="px-3 py-2 font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               Settings
