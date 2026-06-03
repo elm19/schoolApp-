@@ -49,7 +49,7 @@ export default async function ProtectedLayout({
           role={role}
         />
         <div className="flex min-w-0 flex-1 flex-col">
-          <main className="mx-auto w-full max-w-7xl px-5 py-6 md:px-8 md:py-8">
+          <main className="mx-auto w-full max-w-7xl px-5 pb-6 pt-24 md:px-8 md:py-8">
             {children}
           </main>
         </div>

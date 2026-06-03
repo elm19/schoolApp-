@@ -8,10 +8,11 @@ import { useState } from "react";
 import {
   IconBook2,
   IconChevronRight,
+  IconX,
   IconHelpCircle,
   IconDashboard,
   IconLogout,
-  IconPresentation,
+  IconMenu2,
   IconSettings,
   IconUserCircle,
   IconUserCog,
@@ -40,7 +41,8 @@ const navItems = [
 export function AppSidebar({ courses, email, name, role }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const displayName = name || email;
   const displayRole = role.charAt(0).toUpperCase() + role.slice(1);
@@ -62,15 +64,15 @@ export function AppSidebar({ courses, email, name, role }: AppSidebarProps) {
           displayRole={displayRole}
           email={email}
           isSigningOut={isSigningOut}
-          menuOpen={menuOpen}
+          menuOpen={userMenuOpen}
           pathname={pathname}
           role={role}
-          setMenuOpen={setMenuOpen}
+          setMenuOpen={setUserMenuOpen}
           signOut={signOut}
         />
       </aside>
 
-      <header className="sticky top-0 z-20 border-b bg-background/85 px-4 py-3 backdrop-blur md:hidden">
+      <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/90 px-4 py-3 shadow-sm backdrop-blur md:hidden">
         <div className="flex items-center justify-between gap-4">
           <Link href="/dashboard" className="flex items-center gap-3">
             <Image
@@ -85,25 +87,62 @@ export function AppSidebar({ courses, email, name, role }: AppSidebarProps) {
               <p className="text-xs text-muted-foreground">Student portal</p>
             </div>
           </Link>
-          <Button variant="outline" size="sm" onClick={() => setMenuOpen((value) => !value)}>
-            Menu
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Open navigation menu"
+            onClick={() => setMobileOpen(true)}
+          >
+            <IconMenu2 className="size-4" />
           </Button>
         </div>
-        {menuOpen ? (
-          <div className="mt-4 rounded-2xl border bg-background p-3 shadow-xl">
-            <SidebarContent
-              courses={courses}
-              displayName={displayName}
-              displayRole={displayRole}
-              email={email}
-              isSigningOut={isSigningOut}
-              menuOpen={menuOpen}
-              pathname={pathname}
-              role={role}
-              setMenuOpen={setMenuOpen}
-              signOut={signOut}
-              compact
+        {mobileOpen ? (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <button
+              type="button"
+              aria-label="Close navigation menu"
+              className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+              onClick={() => setMobileOpen(false)}
             />
+            <div className="relative z-10 flex h-dvh w-[min(88vw,360px)] flex-col overflow-y-auto border-r bg-[#fbfbf9] p-4 shadow-2xl">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <Link href="/dashboard" className="flex items-center gap-3">
+                  <Image
+                    src="/logo.png"
+                    alt="SchoolApp+ logo"
+                    width={34}
+                    height={34}
+                    className="rounded-xl"
+                  />
+                  <div>
+                    <p className="font-semibold leading-none">SchoolApp+</p>
+                    <p className="text-xs text-muted-foreground">Student portal</p>
+                  </div>
+                </Link>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Close navigation menu"
+                  className="shrink-0"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <IconX className="size-4" />
+                </Button>
+              </div>
+              <SidebarContent
+                courses={courses}
+                displayName={displayName}
+                displayRole={displayRole}
+                email={email}
+                isSigningOut={isSigningOut}
+                menuOpen={userMenuOpen}
+                pathname={pathname}
+                role={role}
+                setMenuOpen={setUserMenuOpen}
+                signOut={signOut}
+                compact
+              />
+            </div>
           </div>
         ) : null}
       </header>
@@ -190,7 +229,7 @@ function SidebarContent({
         </nav>
       </div>
 
-      <div className="mt-8 rounded-2xl border bg-background p-3 shadow-sm">
+      <div className={cn("mt-8 rounded-2xl border bg-background p-3 shadow-sm", compact && "mt-2")}>
         <p className="px-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
           Quick actions
         </p>
@@ -214,13 +253,13 @@ function SidebarContent({
         )}
       </div>
 
-      <div className="mt-8 rounded-2xl border bg-linear-to-br from-background to-muted/40 p-3 shadow-sm md:mt-auto">
+      <div className={cn("mt-8 rounded-3xl border bg-background p-3 shadow-sm ring-1 ring-black/5 md:mt-auto", compact && "mt-2")}>
         <button
           type="button"
           onClick={() => setMenuOpen(!menuOpen)}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-muted"
+          className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-muted"
         >
-          <div className="flex size-10 items-center justify-center rounded-full bg-foreground text-sm font-semibold text-background shadow-sm">
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-linear-to-br from-foreground to-foreground/70 text-sm font-semibold text-background shadow-sm">
             {getInitial(displayName)}
           </div>
           <div className="min-w-0 flex-1">
@@ -231,9 +270,16 @@ function SidebarContent({
         </button>
 
         {menuOpen ? (
-          <div className="mt-3 grid gap-1 border-t pt-3 text-sm">
-            <MenuItem icon={<IconUserCircle className="size-4" />} label="Profile management" />
-            <MenuItem icon={<IconUserCog className="size-4" />} label="Account status" trailing={displayRole} />
+          <div className="mt-3 grid gap-1 rounded-2xl border bg-muted/20 p-2 text-sm shadow-inner">
+            <div className="rounded-xl bg-background p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Account
+              </p>
+              <p className="mt-2 truncate font-medium">{displayName}</p>
+              <p className="truncate text-xs text-muted-foreground">{email}</p>
+            </div>
+            <MenuItem icon={<IconUserCircle className="size-4" />} label="Profile" />
+            <MenuItem icon={<IconUserCog className="size-4" />} label="Status" trailing="Active" />
             <Link
               href="/settings"
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"

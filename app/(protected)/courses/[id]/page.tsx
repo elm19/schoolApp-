@@ -1,6 +1,7 @@
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { SessionCard } from "@/components/session-card";
+import { SessionFilter } from "@/components/session-filter";
+import { TeacherSessionActions } from "@/components/teacher-session-actions";
 import {
   Card,
   CardContent,
@@ -11,6 +12,7 @@ import {
 import { getCourseLabel } from "@/lib/course-display";
 import {
   getAccessibleCourses,
+  getConfirmedStaff,
   getStaffNameByUserId,
   type SessionRow,
 } from "@/lib/school-data";
@@ -36,6 +38,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
   const courses = await getAccessibleCourses(supabase, user);
   const course = courses.find((item) => item.code === courseCode);
+  const isConfirmedTeacher =
+    user.user_metadata?.role === "teacher" &&
+    Boolean(await getConfirmedStaff(supabase, user.id));
 
   if (!course) {
     return <UnavailableCourse />;
@@ -55,6 +60,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
   ]) {
     teacherNames.set(teacherId, await getStaffNameByUserId(supabase, teacherId));
   }
+  const teacherNameRecord = Object.fromEntries(teacherNames.entries());
 
   return (
     <div className="space-y-6">
@@ -64,19 +70,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
         eyebrow="Course"
         title={course.code}
         description={course.name ?? "Course name unavailable"}
+        actions={
+          isConfirmedTeacher ? (
+            <TeacherSessionActions courses={[course]} />
+          ) : null
+        }
       />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Course details</CardTitle>
-          <CardDescription>{getCourseLabel(course)}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <InfoBlock label="Course code" value={course.code} />
-          <InfoBlock label="Course name" value={course.name ?? "Unavailable"} />
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle>Sessions and events</CardTitle>
@@ -86,15 +85,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
         </CardHeader>
         <CardContent className="space-y-3">
           {sessionRows.length > 0 ? (
-            sessionRows.map((session) => (
-              <SessionCard
-                key={session.id}
-                session={session}
-                teacherName={
-                  teacherNames.get(session.teacher_id) ?? "Unavailable"
-                }
-              />
-            ))
+            <SessionFilter
+              sessions={sessionRows}
+              teacherNames={teacherNameRecord}
+            />
           ) : (
             <EmptyState
               title="No sessions found"

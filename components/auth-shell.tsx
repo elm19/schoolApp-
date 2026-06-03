@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Icon } from "@tabler/icons-react";
 import { IconArrowLeft, IconBook2, IconCalendarCheck, IconSparkles } from "@tabler/icons-react";
 
 type AuthShellProps = {
@@ -8,6 +9,12 @@ type AuthShellProps = {
   title: string;
   description: string;
 };
+
+const features: { label: string; icon: Icon }[] = [
+  { label: "Manage your courses", icon: IconBook2 },
+  { label: "Track sessions and attendance", icon: IconCalendarCheck },
+  { label: "Connect with your school platform", icon: IconSparkles },
+];
 
 export function AuthShell({
   children,
@@ -54,17 +61,13 @@ export function AuthShell({
               {description}
             </p>
             <div className="mt-8 grid gap-3">
-              {[
-                ["Manage your courses", IconBook2],
-                ["Track sessions and attendance", IconCalendarCheck],
-                ["Connect with your school platform", IconSparkles],
-              ].map(([label, Icon]) => (
+              {features.map(({ icon: FeatureIcon, label }) => (
                 <div
-                  key={String(label)}
+                  key={label}
                   className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75"
                 >
-                  <Icon className="size-4 text-white" />
-                  {String(label)}
+                  <FeatureIcon className="size-4 text-white" />
+                  {label}
                 </div>
               ))}
             </div>
