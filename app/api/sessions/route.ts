@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getConfirmedStaff } from "@/lib/school-data";
 import { createClient } from "@/lib/supabase/server";
 
+type ActionType = "roll_call" | "presentation";
 type SessionType = "course" | "TP";
 
 const periodsBySessionType: Record<SessionType, string[]> = {
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   if (user.user_metadata?.role !== "teacher") {
     return NextResponse.json(
-      { success: false, message: "Only teachers can start roll call." },
+      { success: false, message: "Only teachers can create sessions." },
       { status: 403 },
     );
   }
@@ -38,6 +40,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = (await request.json()) as {
+    actionType?: ActionType;
     courseId?: string;
     date?: string;
     period?: string;
@@ -46,6 +49,7 @@ export async function POST(request: NextRequest) {
   };
 
   if (
+    !body.actionType ||
     !body.courseId ||
     !body.date ||
     !body.period ||
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
     !body.sessionType
   ) {
     return NextResponse.json(
-      { success: false, message: "Missing required roll call fields." },
+      { success: false, message: "Missing required session fields." },
       { status: 400 },
     );
   }
@@ -61,49 +65,32 @@ export async function POST(request: NextRequest) {
   const periodIndex = periodsBySessionType[body.sessionType]?.indexOf(body.period);
   if (periodIndex === undefined || periodIndex < 0) {
     return NextResponse.json(
-      { success: false, message: "Invalid period for the selected session type." },
+      {
+        success: false,
+        message: "Invalid period for the selected session type.",
+      },
       { status: 400 },
     );
   }
 
-  const { error } = await supabase.from("attendence_list").insert({
+  const { error } = await supabase.from("sessions").insert({
     date: body.date,
     courses_id: body.courseId,
     isTP: body.sessionType === "TP",
     period: periodIndex + 1,
     class: body.section,
+    event: body.actionType === "roll_call" ? "roll" : "presentation",
   });
 
   if (error) {
     return NextResponse.json(
-      { success: false, message: "Could not create roll call." },
+      { success: false, message: "Could not create session." },
       { status: 500 },
     );
   }
 
   return NextResponse.json({
     success: true,
-    message: "Roll call created successfully.",
+    message: "Session created successfully.",
   });
-}
-
-async function getConfirmedStaff(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-) {
-  const userIdColumns = ["user_id", "id", "teacher_id", "auth_user_id"];
-
-  for (const column of userIdColumns) {
-    const { data, error } = await supabase
-      .from("staff")
-      .select("name")
-      .eq(column, userId)
-      .maybeSingle();
-
-    if (!error && data) {
-      return data;
-    }
-  }
-
-  return null;
 }

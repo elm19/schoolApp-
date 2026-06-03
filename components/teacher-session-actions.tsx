@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ function SessionSheet({
   courses: CourseOption[];
   title: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [year, setYear] = useState(years[0]);
   const [section, setSection] = useState(sections[0]);
@@ -102,13 +104,6 @@ function SessionSheet({
       period,
     };
 
-    if (actionType === "presentation") {
-      console.log(payload);
-      setMessage("Presentation session logged in the console.");
-      setOpen(false);
-      return;
-    }
-
     if (!payload.courseId || !payload.date || !payload.period || !payload.section) {
       setError("Please fill in all required fields.");
       return;
@@ -117,7 +112,7 @@ function SessionSheet({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/attendance-list", {
+      const response = await fetch("/api/sessions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -130,12 +125,13 @@ function SessionSheet({
       };
 
       if (!response.ok || !data.success) {
-        setError(data.message ?? "Could not create roll call.");
+        setError(data.message ?? "Could not create session.");
         return;
       }
 
-      setMessage(data.message ?? "Roll call created successfully.");
+      setMessage(data.message ?? "Session created successfully.");
       setOpen(false);
+      router.refresh();
     } catch {
       setError("Network/server error. Please try again.");
     } finally {
@@ -159,22 +155,38 @@ function SessionSheet({
         </SheetHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-5 px-8 pb-8">
-          <SelectField label="Year" value={year} onValueChange={setYear} values={years} />
+            <SelectField
+              label="Year"
+              value={year}
+              onValueChange={setYear}
+              values={years}
+              disabled={isSubmitting}
+            />
           <SelectField
             label="Section"
             value={section}
             onValueChange={setSection}
             values={sections}
+            disabled={isSubmitting}
           />
 
           <div className="space-y-2">
             <Label htmlFor={`${actionType}-group`}>Group</Label>
-            <Input id={`${actionType}-group`} name="group" placeholder="Optional" />
+            <Input
+              id={`${actionType}-group`}
+              name="group"
+              placeholder="Optional"
+              disabled={isSubmitting}
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Element / Course</Label>
-            <Select value={courseId} onValueChange={setCourseId} disabled={courses.length === 0}>
+            <Select
+              value={courseId}
+              onValueChange={setCourseId}
+              disabled={courses.length === 0 || isSubmitting}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a course" />
               </SelectTrigger>
@@ -195,7 +207,11 @@ function SessionSheet({
 
           <div className="space-y-2">
             <Label>Session type</Label>
-            <Select value={sessionType} onValueChange={handleSessionTypeChange}>
+            <Select
+              value={sessionType}
+              onValueChange={handleSessionTypeChange}
+              disabled={isSubmitting}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -208,12 +224,18 @@ function SessionSheet({
 
           <div className="space-y-2">
             <Label htmlFor={`${actionType}-date`}>Date</Label>
-            <Input id={`${actionType}-date`} name="date" type="date" required />
+            <Input
+              id={`${actionType}-date`}
+              name="date"
+              type="date"
+              disabled={isSubmitting}
+              required
+            />
           </div>
 
           <div className="space-y-2">
             <Label>Period</Label>
-            <Select value={period} onValueChange={setPeriod}>
+            <Select value={period} onValueChange={setPeriod} disabled={isSubmitting}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -227,7 +249,7 @@ function SessionSheet({
             </Select>
           </div>
 
-          <Button type="submit" disabled={!courseId}>
+          <Button type="submit" disabled={!courseId || isSubmitting}>
             {isSubmitting ? "Creating..." : "Create session"}
           </Button>
 
@@ -252,16 +274,18 @@ function SelectField({
   onValueChange,
   value,
   values,
+  disabled = false,
 }: {
   label: string;
   onValueChange: (value: string) => void;
   value: string;
   values: string[];
+  disabled?: boolean;
 }) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Select value={value} onValueChange={onValueChange}>
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>

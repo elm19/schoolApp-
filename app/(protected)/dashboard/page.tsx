@@ -8,14 +8,18 @@ import {
 import Link from "next/link";
 import { DashboardClient } from "@/components/dashboard-client";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { TeacherSessionActions } from "@/components/teacher-session-actions";
 import {
   getCourseCode,
   getCourseLabel,
   getCourseName,
-  type StudentCourseDisplay,
 } from "@/lib/course-display";
+import {
+  getConfirmedStaff,
+  mapStudentCoursesToDisplay,
+  type StaffRow,
+  type StudentCourseRow,
+} from "@/lib/school-data";
 import { createClient } from "@/lib/supabase/server";
 
 type DashboardPageProps = {
@@ -36,11 +40,6 @@ type Profile = {
   year: number | string | null;
 };
 
-type StudentCourseRow = {
-  course_id?: string | number | null;
-  [key: string]: unknown;
-};
-
 type CourseRow = {
   id?: string | number | null;
   code?: string | null;
@@ -49,12 +48,6 @@ type CourseRow = {
   title?: string | null;
   [key: string]: unknown;
 };
-
-type StaffRow = {
-  name: string | null;
-};
-
-type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 export default async function DashboardPage({
   searchParams,
@@ -85,7 +78,6 @@ export default async function DashboardPage({
     return (
       <TeacherDashboard
         staff={staff}
-        studentCourses={courseDisplays}
         courses={(courses ?? []) as CourseRow[]}
       />
     );
@@ -102,31 +94,30 @@ export default async function DashboardPage({
       <div>
         <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          Student overview
+          Welcome back{profile?.name ? `, ${profile.name}` : ""}
         </h1>
       </div>
 
       {profile ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Student profile</CardTitle>
-            <CardDescription>
-              Stored profile information from your SchoolApp account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6 lg:grid-cols-[160px_1fr]">
-            <div className="flex aspect-square items-center justify-center border bg-muted text-4xl font-semibold text-muted-foreground">
-              {getInitials(profile.name)}
+        <Card size="sm">
+          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex size-14 items-center justify-center rounded-full bg-muted text-lg font-semibold text-muted-foreground">
+                {getInitials(profile.name)}
+              </div>
+              <div>
+                <p className="font-semibold">{profile.name ?? "Student"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {profile.code ?? "No student code"}
+                </p>
+              </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ProfileInfo label="Name" value={profile.name} />
-              <ProfileInfo label="Code" value={profile.code} />
-              <ProfileInfo label="Section / Filiere" value={profile.section} />
-              <ProfileInfo label="Group" value={profile.group_name} />
-              <ProfileInfo label="Subgroup" value={profile.subgroup} />
-              <ProfileInfo label="Status" value={profile.status} />
-              <ProfileInfo label="Year" value={profile.year} />
-              <ProfileInfo label="Email" value={profile.email ?? user?.email} />
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">{profile.section ?? "No section"}</Badge>
+              <Badge variant="secondary">{profile.group_name ?? "No group"}</Badge>
+              {profile.subgroup ? (
+                <Badge variant="secondary">{profile.subgroup}</Badge>
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -140,50 +131,6 @@ export default async function DashboardPage({
       />
     </div>
   );
-}
-
-async function getConfirmedStaff(
-  supabase: SupabaseServerClient,
-  userId: string,
-) {
-  const userIdColumns = ["user_id", "id", "teacher_id", "auth_user_id"];
-
-  for (const column of userIdColumns) {
-    const { data, error } = await supabase
-      .from("staff")
-      .select("name")
-      .eq(column, userId)
-      .maybeSingle<StaffRow>();
-
-    if (!error && data) {
-      return data;
-    }
-  }
-
-  return null;
-}
-
-function mapStudentCoursesToDisplay(
-  studentCourses: StudentCourseRow[],
-  courses: CourseRow[],
-) {
-  const coursesByCode = new Map(
-    courses.map((course) => [getCourseCode(course), getCourseName(course)]),
-  );
-
-  return studentCourses
-    .map((studentCourse) => {
-      const code = String(studentCourse.course_id ?? "");
-      if (!code) {
-        return null;
-      }
-
-      return {
-        code,
-        name: coursesByCode.get(code) ?? null,
-      };
-    })
-    .filter((course): course is StudentCourseDisplay => Boolean(course));
 }
 
 function PendingTeacherDashboard() {
@@ -218,11 +165,9 @@ function PendingTeacherDashboard() {
 function TeacherDashboard({
   courses,
   staff,
-  studentCourses,
 }: {
   courses: CourseRow[];
   staff: StaffRow;
-  studentCourses: StudentCourseDisplay[];
 }) {
   const courseOptions = courses
     .map((course) => {
@@ -240,80 +185,59 @@ function TeacherDashboard({
         <div>
           <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Teacher overview
+            Welcome, {staff.name ?? "Teacher"}
           </h1>
+          <Badge className="mt-3" variant="secondary">Teacher</Badge>
         </div>
-        <TeacherSessionActions courses={courseOptions} />
       </div>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
-          <CardTitle>Staff information</CardTitle>
+          <CardTitle>Teacher actions</CardTitle>
           <CardDescription>
-            Basic staff details loaded from Supabase.
+            Start classroom sessions for roll call or presentations.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ProfileInfo label="Name" value={staff?.name} />
+          <TeacherSessionActions courses={courseOptions} />
         </CardContent>
       </Card>
 
-      <Card>
+      <Card size="sm">
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle>Student courses</CardTitle>
+              <CardTitle>Courses</CardTitle>
               <CardDescription>
-                Current rows from the student_courses table.
+                A quick preview of available courses.
               </CardDescription>
             </div>
-            <Badge variant="secondary">{studentCourses.length} rows</Badge>
+            <div className="flex items-center gap-3">
+              <Badge variant="secondary">{courseOptions.length} courses</Badge>
+              <Link href="/courses" className="text-sm font-medium underline-offset-4 hover:underline">
+                View all courses
+              </Link>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {studentCourses.length > 0 ? (
-            studentCourses.map((course, index) => (
-              <div key={`${course.code}-${index}`} className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Course
-                  </p>
-                  <Link
-                    href={`/courses/${encodeURIComponent(course.code)}`}
-                    className="wrap-break-word font-medium underline-offset-4 hover:underline"
-                  >
-                    {getCourseLabel(course)}
-                  </Link>
-                </div>
-                {index < studentCourses.length - 1 ? <Separator /> : null}
-              </div>
+          {courseOptions.length > 0 ? (
+            courseOptions.slice(0, 5).map((course) => (
+              <Link
+                key={course.code}
+                href={`/courses/${encodeURIComponent(course.code)}`}
+                className="block rounded-md border bg-background px-3 py-2 text-sm font-medium underline-offset-4 hover:bg-muted hover:underline"
+              >
+                {getCourseLabel(course)}
+              </Link>
             ))
           ) : (
             <p className="text-sm text-muted-foreground">
-              No student courses found.
+              No courses found.
             </p>
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function ProfileInfo({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number | null | undefined;
-}) {
-  return (
-    <div className="border bg-background p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-2 wrap-break-word font-medium">
-        {value || "Unavailable"}
-      </p>
     </div>
   );
 }

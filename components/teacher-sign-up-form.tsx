@@ -24,7 +24,7 @@ export function TeacherSignUpForm() {
 
   async function handleSubmit(formData: FormData) {
     setError(null);
-    setStatus("Creating teacher account...");
+    setStatus("Creating your teacher account...");
     setIsPending(true);
 
     const name = String(formData.get("name") ?? "").trim();
@@ -70,7 +70,13 @@ export function TeacherSignUpForm() {
         <form action={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="teacher-name">Name</Label>
-            <Input id="teacher-name" name="name" autoComplete="name" required />
+            <Input
+              id="teacher-name"
+              name="name"
+              autoComplete="name"
+              disabled={isPending}
+              required
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="teacher-email">Email</Label>
@@ -79,6 +85,7 @@ export function TeacherSignUpForm() {
               name="email"
               type="email"
               autoComplete="email"
+              disabled={isPending}
               required
             />
           </div>
@@ -90,6 +97,7 @@ export function TeacherSignUpForm() {
               type="password"
               autoComplete="new-password"
               minLength={6}
+              disabled={isPending}
               required
             />
           </div>

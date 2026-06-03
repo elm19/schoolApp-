@@ -195,10 +195,19 @@ export function DashboardClient({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Registered courses</CardTitle>
-        <CardDescription>
-          Saved course registrations from Supabase are used as the source of truth.
-        </CardDescription>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <CardTitle>Courses</CardTitle>
+            <CardDescription>
+              A quick preview of your registered courses.
+            </CardDescription>
+          </div>
+          {courses.length > 0 ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/courses">View all courses</Link>
+            </Button>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {importStatus ? (
@@ -215,7 +224,7 @@ export function DashboardClient({
 
         <div className="flex flex-wrap gap-2">
           {courses.length > 0 ? (
-            courses.map((course) => (
+            courses.slice(0, 5).map((course) => (
               <Link
                 key={course.code}
                 href={`/courses/${encodeURIComponent(course.code)}`}

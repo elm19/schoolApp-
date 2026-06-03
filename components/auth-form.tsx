@@ -65,24 +65,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     let redirectTo = searchParams.get("redirectedFrom") ?? "/dashboard";
 
     if (isSignIn) {
-      setStepMessage("Checking your profile...");
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (!profile) {
-        setStepMessage("Connecting to SchoolApp if needed...");
-        const connection = await connectSchoolApp(email, password);
-        if (!connection.success) {
-          redirectTo = `/dashboard?uncompleted=true&platformError=${encodeURIComponent(
-            connection.message,
-          )}`;
-        } else {
-          redirectTo = "/dashboard?uncompleted=true";
-        }
-      }
+      setStepMessage("Redirecting...");
     } else {
       setStepMessage("Connecting to SchoolApp...");
       const connection = await connectSchoolApp(email, password);
@@ -95,7 +78,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
     }
 
-    setStepMessage(isSignIn ? "Redirecting..." : "Redirecting to dashboard...");
+    setStepMessage("Redirecting...");
     setIsPending(false);
     router.push(redirectTo);
     router.refresh();
@@ -140,8 +123,9 @@ export function AuthForm({ mode }: AuthFormProps) {
       <CardHeader>
         <CardTitle>{isSignIn ? "Sign in" : "Create an account"}</CardTitle>
         <CardDescription>
-          Use your SchoolApp email and password. We will use these credentials
-          to verify your school account and create your student profile.
+          {isSignIn
+            ? "Sign in with your Supabase account to continue."
+            : "Use your SchoolApp email and password. We will verify your school account and create your student profile."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -153,6 +137,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               name="email"
               type="email"
               autoComplete="email"
+              disabled={isPending}
               required
             />
           </div>
@@ -164,6 +149,7 @@ export function AuthForm({ mode }: AuthFormProps) {
               type="password"
               autoComplete={isSignIn ? "current-password" : "new-password"}
               minLength={6}
+              disabled={isPending}
               required
             />
           </div>

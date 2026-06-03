@@ -11,7 +11,7 @@ export default function Home() {
             School management starter
           </p>
           <h1 className="max-w-3xl text-4xl font-semibold tracking-tight sm:text-6xl">
-            SchoolApp Plus
+            SchoolApp+
           </h1>
           <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
             A clean foundation for managing school workflows, starting with
